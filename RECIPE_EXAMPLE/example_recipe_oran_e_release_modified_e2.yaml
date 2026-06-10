@@ -76,9 +76,9 @@ appmgr:
      name: it-dep-init
      tag: 0.0.1
    appmgr:
-     registry: "nexus3.o-ran-sc.org:10002/o-ran-sc"
+     registry: "localhost:5001"
      name: ric-plt-appmgr
-     tag: 0.4.3
+     tag: 0.4.24
    chartmuseum:
      registry: "docker.io"
      name: chartmuseum/chartmuseum

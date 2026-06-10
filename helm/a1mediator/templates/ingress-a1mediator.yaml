@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: {{ include "common.ingressname.a1mediator" . }}
 spec:
+  ingressClassName: kong
   rules:
   - http:
       paths:

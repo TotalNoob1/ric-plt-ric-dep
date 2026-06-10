@@ -1,0 +1,5 @@
+[submodule "ric-plt-appmgr"]
+    path = docker/ric-plt-appmgr
+    url = https://github.com/TotalNoob1/ric-plt-appmgr.git
+    branch = helm3
+    

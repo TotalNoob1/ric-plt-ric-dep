@@ -18,7 +18,6 @@
 {{- $topCtx :=  . }}
 {{- $ctx := dict "ctx" $topCtx "key" $tillerKey }}
 {{- $secretPath := .Values.appmgr.appsecretpath | default "/opt/ric/secret" }}
-{{- $certName := include "common.tillerHelmClientTLSSecret" $ctx }} 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -49,42 +48,7 @@ spec:
       serviceAccountName: {{ include "common.serviceaccountname.appmgr" . }}
       imagePullSecrets:
         {{- $newctx := dict "ctx" $topCtx "defaultregistry" .Values.appmgr.image.init.registry }}
-        - name: {{ include "common.dockerregistry.credential" $newctx -}}
-{{- if or (eq ( include "common.tillerTLSVerify" $ctx ) "true" )  (eq ( include "common.tillerTLSAuthenticate" $ctx ) "true") }}
-      initContainers:
-        - name: {{ include "common.containername.appmgr" . }}-copy-tiller-secret
-          {{- $newctx := dict "ctx" $topCtx "defaultregistry" .Values.appmgr.image.init.registry }}
-          image: {{ include "common.dockerregistry.url" $newctx }}/{{ .Values.appmgr.image.init.name }}:{{ .Values.appmgr.image.init.tag }}
-          {{- $newctx := dict "ctx" $topCtx "defaultpullpolicy" .Values.appmgr.imagePullPolicy }}
-          imagePullPolicy: {{ include "common.dockerregistry.pullpolicy" $newctx }}
-          env:
-            - name: SVCACCT_NAME
-              value: {{ include "common.serviceaccountname.appmgr" . }}
-            - name: CLUSTER_NAME
-              value: {{ default "kubernetes" .Values.appmgr.clusterName }}
-            - name: KUBECONFIG
-              value: /tmp/kubeconfig
-            - name: K8S_API_HOST
-              value: {{ default "https://kubernetes.default.svc.cluster.local/" .Values.common.k8sAPIHost }}
-            - name: SECRET_NAMESPACE
-              value: {{ include "common.tillerDeployNameSpace" $ctx }}
-            - name: SECRET_NAME
-              value: {{ include "common.tillerHelmClientTLSSecret" $ctx }}
-          envFrom:
-            - configMapRef:
-                name: {{ include "common.configmapname.appmgr" . }}-env
-          command: ["/appmgr-tiller-secret-copier.sh"]
-          volumeMounts:
-            - name: helm-secret-volume
-              mountPath: {{ $secretPath }}
-              readOnly: false
-            - name: appmgr-bin-volume
-              mountPath: /svcacct-to-kubeconfig.sh
-              subPath: svcacct-to-kubeconfig.sh
-            - name: appmgr-bin-volume
-              mountPath: /appmgr-tiller-secret-copier.sh
-              subPath: appmgr-tiller-secret-copier.sh
-{{- end }}      
+        - name: {{ include "common.dockerregistry.credential" $newctx }}      
       containers:
         - name: {{ include "common.containername.appmgr" . }}
           {{- $newctx := dict "ctx" $topCtx "defaultregistry" .Values.appmgr.image.appmgr.registry }}
@@ -115,8 +79,6 @@ spec:
               mountPath: {{ $secretPath }}/helm_repo_password
               subPath: helm_repo_password
           envFrom:
-            - configMapRef:
-                name: {{ include "common.configmapname.appmgr" . }}-env
             - configMapRef:
                 name: {{ include "common.configmapname.dbaas" . }}-appconfig
           livenessProbe:

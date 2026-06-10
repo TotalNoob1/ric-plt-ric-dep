@@ -46,29 +46,177 @@ certificate-manager:
 
 
 prometheus:
-  enabled: false
+  enabled: true
+  serviceAccounts:
+    alertmanager:
+      create: true
+    nodeExporter:
+      create: true
+    pushgateway:
+      create: true
+    server:
+      create: true
+  alertmanager:
+    baseURL: "http://localhost:9093"
+    persistentVolume:
+      enabled: false
+  prometheus-node-exporter:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  alertmanagerFiles:
+    alertmanager.yml:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_wait: 5s
+        group_interval: 3m
+        repeat_interval: 1h
+        group_by: ['alertname', 'severity', 'instance', 'job']
+        receiver: vespa
+        routes:
+        #  - receiver: echo
+        #    continue: true
+          - receiver: vespa
+            continue: true
+      receivers:
+      #  - name: echo
+      #    webhook_configs:
+      #      - url: 'http://10.244.0.1:5001'
+        - name: vespa
+          webhook_configs:
+            - url: 'http://service-ricplt-vespamgr-http:9095/alerts'
+  prometheusSpec:
+    enableAdminAPI: true 
+  serverFiles:
+    ## Alerts configuration
+    ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+    alerting_rules.yml: {}
+    alerts: {}
+
+    ## Records configuration
+    ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+    recording_rules.yml: {}
+    ## DEPRECATED DEFAULT VALUE, unless explicitly naming your files, please use recording_rules.yml
+    rules: {}
+
+    prometheus.yml:
+      rule_files:
+        - /etc/config/recording_rules.yml
+        - /etc/config/alerting_rules.yml
+      ## Below two files are DEPRECATED will be removed from this default values file
+        - /etc/config/rules
+        - /etc/config/alerts
+
+      scrape_configs:
+        # A scrape configuration for running Prometheus on a Kubernetes cluster.
+        # This uses separate scrape configs for cluster components (i.e. API server, node)
+        # and services to allow each to use different authentication configs.
+        #
+        # Kubernetes labels will be added as Prometheus labels on metrics via the
+        # `labelmap` relabeling action.
+        # Scrape config for API servers.
+        #
+        # Kubernetes exposes API servers as endpoints to the default/kubernetes
+        # service so this uses `endpoints` role and uses relabelling to only keep
+        # the endpoints associated with the default/kubernetes service using the
+        # default named port `https`. This works for single API server deployments as
+        # well as HA API server deployments.
+        - job_name: 'kubernetes-apiservers'
+
+          kubernetes_sd_configs:
+            - role: endpoints
+
+          # Default to scraping over https. If required, just disable this or change to
+          # `http`.
+          scheme: https
+          # This TLS & bearer token file config is used to connect to the actual scrape
+          # endpoints for cluster components. This is separate to discovery auth
+          # configuration because discovery & scraping are two separate concerns in
+          # Prometheus. The discovery auth config is automatic if Prometheus runs inside
+          # the cluster. Otherwise, more config options have to be provided within the
+          # <kubernetes_sd_config>.
+          tls_config:
+            ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            # If your node certificates are self-signed or use a different CA to the
+            # master CA, then disable certificate verification below. Note that
+            # certificate verification is an integral part of a secure infrastructure
+            # so this should only be disabled in a controlled environment. You can
+            # disable certificate verification by uncommenting the line below.
+            #
+            insecure_skip_verify: true
+          bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+          # Keep only the default/kubernetes service endpoints for the https port. This
+          # will add targets for each API server which Kubernetes adds an endpoint to
+          # the default/kubernetes service.
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+              action: keep
+              regex: default;kubernetes;https
+    server:
+      extraArgs:
+        web.enable-lifecycle: ""
 
 
 danm-network:
   enabled: true
 
 
-kong:
+# ingress:
+#   enabled: true
+controller:
+  proxy:
+    nameOverride: "{{ .Release.Name }}-gateway-proxy"
   enabled: true
+  deployment:
+    kong:
+      enabled: false
   ingressController:
     enabled: true
+    gatewayDiscovery:
+      enabled: true
+      generateAdminApiService: true
+  podAnnotations:
+    kuma.io/gateway: enabled
+    # This port must match your Kong admin API port. 8444 is the default.
+    # If you set gateway.admin.tls.containerPort, change these annotations
+    # to use that value.
+    traffic.kuma.io/exclude-outbound-ports: "8444"
+    traffic.sidecar.istio.io/excludeOutboundPorts: "8444"
+gateway:
+  enabled: true
+  deployment:
+    kong:
+      enabled: true
 
-  postgresql:
+  admin:
+    enabled: true
+    type: ClusterIP
+    clusterIP: None
+
+  ingressController:
     enabled: false
-
-  env:
-    database: "off"
-
   proxy:
+    type: NodePort
     http:
+      enabled: true
+      servicePort: 32080
+      containerPort: 32080
       nodePort: 32080
     tls:
+      enabled: true
+      servicePort: 32443
+      containerPort: 32443
       nodePort: 32443
+  env:
+    role: traditional
+    database: "off"
+#   #     enabled: false
+
+
+
+      
   # These port numbers MUST matche with what's in
   # ric-common/Common-Template/helm/ric-common/templates/_ingresscontroller.tpl file.
   # If need to change a proxy port here, do not forget to update the

@@ -29,8 +29,14 @@ dependencies:
     condition: docker-credential.enabled
   - name: kong
     version: 3.0.2
-    repository: "file://./subcharts/kong"
-    condition: kong.enabled
+    repository: "https://charts.konghq.com"
+    alias: controller
+    condition: controller.enabled
+  - name: kong
+    version: 3.0.2
+    repository: "https://charts.konghq.com"
+    alias: gateway
+    condition: gateway.enabled
   - name: certificate-manager
     version: 0.1.0
     repository: "file://./subcharts/certificate-manager"
@@ -41,5 +47,5 @@ dependencies:
     condition: danm-networks.enabled
   - name: prometheus
     version: 28.9.1
-    repository: "file://./subcharts/prometheus"
+    repository: "https://prometheus-community.github.io/helm-charts"
     condition: prometheus.enabled

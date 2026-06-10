@@ -33,18 +33,22 @@ spec:
       protocol: "TCP"
       port: 443
 ---
-kind: "Endpoints"
-apiVersion: "v1"
+kind: "EndpointSlice"
+apiVersion: "discovery.k8s.io/v1"
 metadata:
   # match with the selector-less service
   name: {{ include "common.ingresscontroller.url.aux" $ }}
   namespace: {{ . }}
-subsets: 
+  labels:
+    kubernetes.io/service-name:  {{ include "common.ingresscontroller.url.aux" $ }}
+addressType: IPv4
+endpoints: 
   - addresses:
-      - ip: "{{ $.Values.auxip }}"
-    ports:
-      - port: {{ include "common.ingresscontroller.port.http" $ }}
-        name: {{ include "common.ingresscontroller.url.aux" $ }}-http-ingress-port
-      - port: {{ include "common.ingresscontroller.port.https" $ }}
-        name: {{ include "common.ingresscontroller.url.aux" $ }}-https-ingress-port
+      - "{{ $.Values.auxip }}"
+ports:
+  - name: {{ include "common.ingresscontroller.url.aux" $ }}-http-ingress-port
+    port: {{ include "common.ingresscontroller.port.http" $ }}
+  - name: {{ include "common.ingresscontroller.url.aux" $ }}-https-ingress-port
+    port: {{ include "common.ingresscontroller.port.https" $ }}
+      
 {{- end -}}
